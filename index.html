@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f332f">
+  <title>Industrializarea României interbelice (1920–1938)</title>
+  <meta name="description" content="Infografic interactiv despre industria, petrolul și transporturile României Întregite, între 1920 și 1938.">
+
+  <!-- evită cererea automată /favicon.ico (care ar da 404 în consolă) -->
+  <link rel="icon" href="data:,">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Chart.js prin CDN; "defer" păstrează ordinea: întâi Chart.js, apoi app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+
+<body>
+  <a class="sari" href="#continut">Sari la conținut</a>
+
+  <!-- Apare doar la tipărire / PDF (vezi @media print în style.css) -->
+  <div class="antet-print" aria-hidden="true">
+    <h1>Industrializarea României interbelice (1920–1938)</h1>
+    <p>Proiect interdisciplinar Istorie × Informatică · Echipa 5 · Tipărit la <span id="dataPrint"></span></p>
+  </div>
+
+  <header class="hero">
+    <div class="pagina">
+      <p class="kicker">Echipa 5 · Istorie × Tehnologie · Clasa a X-a</p>
+      <h1>Industrializarea României interbelice</h1>
+      <p class="lead">Între 1920 și 1938, România Întregită își dezvoltă industria — în frunte cu petrolul, apoi metalurgia și transporturile. Explorează cifrele, fluxurile și marile centre industriale.</p>
+      <nav class="nav" aria-label="Secțiunile infograficului">
+        <a href="#ziar">Prima pagină</a>
+        <a href="#boom">A · Boom-ul industrial</a>
+        <a href="#petrol">B · Aurul negru</a>
+        <a href="#harta">C · Harta industriilor</a>
+        <a href="#simulator">D · Fii Ministrul</a>
+        <a href="#surse">Surse și date</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="continut" class="pagina">
+    <noscript><p class="eroare">Infograficul are nevoie de JavaScript pentru a afișa graficele.</p></noscript>
+
+    <!-- ===================== „ZIARUL INTERBELIC” (textele vin din date.json → editorial) ===================== -->
+    <section id="ziar" class="ziar" aria-labelledby="ziarTitlu">
+      <div class="ziar-foaie">
+        <header class="ziar-antet">
+          <p class="ziar-sus">Anul XX · Organ de informare economică</p>
+          <h2 class="ziar-titlu" id="ziarTitlu">Curierul Industrial Român</h2>
+          <p class="ziar-subtitlu" id="ziarSubtitlu">Ediție Specială</p>
+        </header>
+        <ul class="ziar-linie" id="ziarLinie"></ul>
+        <div class="ziar-coloane" id="ziarColoane"></div>
+        <p class="ziar-nota" id="ziarNota"></p>
+      </div>
+    </section>
+
+    <!-- ===================== SECȚIUNEA A — Chart.js ===================== -->
+    <section id="boom" aria-labelledby="titlu-boom">
+      <p class="eticheta-sectiune">Secțiunea A</p>
+      <h2 id="titlu-boom">Boom-ul industrial</h2>
+      <p class="intro">Alege un indicator și mută cursorul pentru a vedea evoluția până într-un an anume. Punctele pline sunt cifre găsite în surse; cele goale sunt valori provizorii sau calculate.</p>
+
+      <div class="panou">
+        <div class="controale">
+          <label>Indicator
+            <select id="selIndicator"></select>
+          </label>
+          <label>Până în anul <output id="outAn" for="rngAn">1938</output>
+            <input type="range" id="rngAn" step="1">
+          </label>
+          <div class="grup-butoane" role="group" aria-label="Tipul graficului">
+            <button type="button" class="btn" data-tip="line" aria-pressed="true">Linie</button>
+            <button type="button" class="btn" data-tip="bar" aria-pressed="false">Coloane</button>
+          </div>
+        </div>
+
+        <div class="cadru-grafic">
+          <canvas id="graficBoom" role="img" aria-label="Grafic cu evoluția indicatorului ales"></canvas>
+          <img id="imgGraficPrint" class="doar-print" alt="Grafic cu evoluția indicatorului ales (versiune pentru tipărire)">
+        </div>
+        <p id="notaA" class="nota" aria-live="polite"></p>
+
+        <dl class="kpi">
+          <div><dt>An selectat</dt><dd id="kpiAn">—</dd></div>
+          <div><dt>Valoare</dt><dd id="kpiValoare">—</dd></div>
+          <div><dt>Grad de încredere</dt><dd id="kpiIncredere">—</dd></div>
+        </dl>
+
+        <h3 class="subtitlu">Context istoric până în anul selectat</h3>
+        <ul id="repereA" class="repere"></ul>
+      </div>
+    </section>
+
+    <!-- ===================== SECȚIUNEA B — Canvas ===================== -->
+    <section id="petrol" aria-labelledby="titlu-petrol">
+      <p class="eticheta-sectiune">Secțiunea B</p>
+      <h2 id="titlu-petrol">Aurul negru și transporturile</h2>
+      <p class="intro">Petrolul din zona Prahova–Dâmbovița ajungea la rafinăriile de la Ploiești, apoi pe conducte și cu trenurile cisternă spre Giurgiu, București și portul Constanța. Cu cât producția anului ales e mai mare, cu atât fluxul e mai intens. În anii ’30, peste jumătate din producție mergea la export.</p>
+
+      <div class="panou">
+        <div class="controale">
+          <label>Anul <output id="outAnFlux" for="rngAnFlux">1936</output>
+            <input type="range" id="rngAnFlux" step="1">
+          </label>
+          <button type="button" class="btn" id="btnJoaca" aria-pressed="false">▶ Redă anii</button>
+          <label class="comutator" for="chkSunet">
+            <input type="checkbox" id="chkSunet" checked>
+            Sunete (tren și sondă)
+          </label>
+        </div>
+
+        <div class="cadru-canvas">
+          <canvas id="canvasFlux" role="img" aria-label="Simulare schematică a fluxului de petrol dinspre câmpurile Prahova–Dâmbovița spre rafinării, București și porturi"></canvas>
+          <img id="imgFluxPrint" class="doar-print" alt="Schema fluxului de petrol (versiune pentru tipărire)">
+        </div>
+        <p id="infoFlux" class="info-flux" aria-live="polite"></p>
+
+        <ul class="legenda">
+          <li><i class="pct pct-camp"></i>Câmp petrolier</li>
+          <li><i class="pct pct-rafinarie"></i>Rafinărie</li>
+          <li><i class="pct pct-port"></i>Port</li>
+          <li><i class="pct pct-conducta"></i>Conductă (puncte aurii)</li>
+          <li><i class="pct pct-tren"></i>Tren cisterne</li>
+        </ul>
+        <p class="nota">Schemă orientativă: traseele și proporțiile nu reproduc exact conductele și liniile ferate din epocă. Sunetele sunt create în browser (nu sunt înregistrări de epocă).</p>
+      </div>
+    </section>
+
+    <!-- ===================== SECȚIUNEA C — SVG ===================== -->
+    <section id="harta" aria-labelledby="titlu-harta">
+      <p class="eticheta-sectiune">Secțiunea C</p>
+      <h2 id="titlu-harta">Harta marilor centre industriale</h2>
+      <p class="intro">Treci cu mouse-ul peste un oraș pentru o fișă rapidă și pentru a vedea regiunea istorică. Apasă pe oraș (sau navighează cu Tab și Enter) pentru detalii complete. Cu filtrul de mai jos poți urmări o singură ramură industrială.</p>
+
+      <div class="panou">
+        <!-- ▼▼▼ MENIUL DE FILTRARE (opțiunile sunt adăugate din app.js, din date.json → harta.ramuri) ▼▼▼ -->
+        <div class="controale controale-harta">
+          <label for="filtruIndustrie">Ramura industrială
+            <select id="filtruIndustrie">
+              <option value="toate">Toate ramurile</option>
+            </select>
+          </label>
+          <p id="statusFiltru" class="status-filtru" role="status" aria-live="polite"></p>
+        </div>
+        <!-- ▲▲▲ SFÂRȘITUL MENIULUI DE FILTRARE ▲▲▲ -->
+
+        <p class="nota doar-mobil">Pe telefon, glisează harta lateral ca să vezi toată țara.</p>
+        <div class="harta-defilare">
+          <svg id="hartaSvg" role="group" aria-label="Hartă schematică a României Întregite cu centrele industriale"></svg>
+        </div>
+        <p class="nota">Conturul este schematic și arată România Întregită din jurul anului 1930: include Basarabia, Bucovina de Nord și Cadrilaterul (Dobrogea de Sud), nu granițele de azi.</p>
+      </div>
+    </section>
+
+    <!-- ===================== SECȚIUNEA D — Simulator (controalele vin din date.json → simulator) ===================== -->
+    <section id="simulator" aria-labelledby="titlu-sim">
+      <p class="eticheta-sectiune">Secțiunea D · Joc didactic</p>
+      <h2 id="titlu-sim">Fii Ministrul Industriei în 1936!</h2>
+      <p class="intro" id="simAvertisment"></p>
+
+      <div class="panou">
+        <div class="sim">
+          <div id="simControale"></div>
+          <div class="sim-rezultate" id="simRezultate"></div>
+          <p class="sim-mesaj" id="simMesaj" role="status" aria-live="polite"></p>
+          <div class="sim-realitate">
+            <strong>Realitatea istorică, în 1936:</strong>
+            <ul id="simRealitate"></ul>
+          </div>
+          <div class="sim-actiuni">
+            <button type="button" class="btn" id="simReset">↺ Revino la situația de referință</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SURSE ===================== -->
+    <section id="surse" aria-labelledby="titlu-surse">
+      <p class="eticheta-sectiune">Transparență</p>
+      <h2 id="titlu-surse">Surse și date</h2>
+      <p class="intro">Toate cifrele de pe această pagină sunt citite din <a href="date.json">date.json</a>. Fiecare valoare are un grad de încredere: <span class="insigna insigna-verificat">verificat</span> <span class="insigna insigna-derivat">derivat</span> <span class="insigna insigna-estimat">estimat</span>.</p>
+
+      <div class="export">
+        <button type="button" class="btn btn-alama" id="btnCsv">📥 Descarcă Anuarul Statistic Interbelic (CSV)</button>
+        <button type="button" class="btn" id="btnPrint">🖨️ Tipărește sau salvează ca PDF</button>
+      </div>
+      <p id="notaExport" class="nota" role="status" aria-live="polite">CSV-ul se deschide direct în Excel (separator „;”, virgulă zecimală). La tipărire alege „Salvează ca PDF”.</p>
+
+      <ol id="listaBiblio" class="biblio"></ol>
+    </section>
+  </main>
+
+  <!-- Pop-up pentru centrele industriale (element <dialog>) -->
+  <dialog id="popup" aria-labelledby="popupTitlu">
+    <button type="button" class="inchide" id="popupInchide" aria-label="Închide fereastra">×</button>
+    <div id="popupCorp"></div>
+  </dialog>
+
+  <!-- Tooltip-ul plutitor al hărții: un singur element, mutat de app.js după cursor -->
+  <div id="tooltipHarta" class="tooltip-plutitor" role="tooltip" aria-hidden="true"></div>
+
+  <!-- Butonul „gramofon”: pornește / oprește muzica de epocă (volum 10%) -->
+  <button type="button" id="btnGramofon" class="gramofon" aria-pressed="false" aria-label="Pornește muzica de epocă" title="Muzică de epocă">
+    <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <g class="disc-grup">
+        <circle class="disc-fundal" cx="30" cy="36" r="22"/>
+        <circle class="disc-canelura" cx="30" cy="36" r="17"/>
+        <circle class="disc-canelura" cx="30" cy="36" r="13"/>
+        <circle class="disc-eticheta" cx="30" cy="36" r="7"/>
+        <circle class="disc-pin" cx="30" cy="36" r="1.6"/>
+      </g>
+      <path class="brat" d="M54 8 L47 24 L38 33"/>
+      <circle cx="54" cy="8" r="3" fill="#b08234"/>
+    </svg>
+  </button>
+  <p id="gramofonMesaj" class="gramofon-mesaj" role="status" aria-live="polite" hidden></p>
+
+  <footer class="subsol">
+    <div class="pagina">
+      <p>Proiect interdisciplinar Istorie × Informatică · Echipa 5 · Clasa a X-a. Date istorice în curs de verificare — vezi secțiunea „Surse și date”.</p>
+    </div>
+  </footer>
+</body>
+</html>
