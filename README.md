@@ -2,7 +2,7 @@
 
 Infografic interactiv despre industria, petrolul și transporturile României Întregite. Proiect interdisciplinar Istorie – Informatică, clasa a X-a, Echipa 5.
 
-**Pagina publicată:** `https://NUMELE-TAU-DE-UTILIZATOR.github.io/industrializare-romania-interbelica/`
+**Pagina publicată:** `https://dragos1234414.github.io/industrializare-romania-interbelica/`
 (înlocuiește `NUMELE-TAU-DE-UTILIZATOR` cu numele contului GitHub după ce activezi GitHub Pages)
 
 ## Ce conține
