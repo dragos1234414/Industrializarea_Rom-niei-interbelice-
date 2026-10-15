@@ -487,12 +487,16 @@ dialog figcaption { font-size: .85rem; color: var(--cerneala-soft); }
   position: fixed; right: 1rem; bottom: 1rem; z-index: 50;
   display: flex; align-items: center; gap: .6rem;
   pointer-events: none;                       /* eticheta nu blochează click-urile din jur */
+  /* ascuns peste tot, în afară de secțiunea B (JavaScript pune clasa .vizibil cât timp harta cu trenuri e pe ecran) */
+  opacity: 0; visibility: hidden; transform: translateY(10px);
+  transition: opacity .3s ease, transform .3s ease, visibility 0s linear .3s;
 }
+.sunet-plutitor.vizibil { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
 .sunet-plutitor > * { pointer-events: auto; }
 .sunet-eticheta {
   padding: .35rem .7rem;
   background: linear-gradient(160deg, #2e2a26, #1a1715);
-  color: #f1e8cf; font-size: .8rem; line-height: 1.2;
+  color: #f1e8cf; font-size: .8rem; line-height: 1.2; max-width: 15rem;
   border: 1px solid var(--alama);
   box-shadow: 0 8px 20px var(--umbra-adanca);
 }
@@ -694,7 +698,7 @@ dialog .sursa-mica { display: block; margin: 0; }
       <section id="boom" aria-labelledby="titlu-boom">
         <p class="eticheta-sectiune">Secțiunea A</p>
         <h2 id="titlu-boom">Boom-ul industrial</h2>
-        <p class="intro">Alege un indicator și mută cursorul pentru a vedea evoluția până într-un an anume. Fiecare schimbare de indicator se aude ca un tren care pornește din gară (după primul click în pagină).</p>
+        <p class="intro">Alege un indicator și mută cursorul pentru a vedea evoluția până într-un an anume.</p>
 
         <div class="panou">
           <div class="controale">
@@ -762,7 +766,7 @@ dialog .sursa-mica { display: block; margin: 0; }
             <li><i class="pct pct-conducta"></i>Conductă (puncte aurii)</li>
             <li><i class="pct pct-tren"></i>Tren cisterne</li>
           </ul>
-          <p class="nota">Traseele sunt desenate stilizat. Cât rulează animația se aude un tren de marfă: cuplaje, puf-uri de locomotivă cu aburi, roți pe șine și fluier. Sunetele sunt create în browser, nu sunt înregistrări de epocă.</p>
+          <p class="nota">Traseele sunt desenate stilizat. Doar aici se aude un tren de marfă care rulează, cu puf-uri de locomotivă cu aburi, roți pe șine și un fluier din când în când. Sunetul pornește după primul click în pagină, se oprește când pleci din secțiune și poate fi oprit din butonul din colț. Este creat în browser, nu e o înregistrare de epocă.</p>
         </div>
       </section>
 
@@ -838,7 +842,7 @@ dialog .sursa-mica { display: block; margin: 0; }
   <!-- Tooltip-ul plutitor al hărții: un singur element, mutat de JavaScript după cursor -->
   <div id="tooltipHarta" class="tooltip-plutitor" role="tooltip" aria-hidden="true"></div>
 
-  <!-- Butonul de sunet (în locul fostului „gramofon”): pornește / oprește sunetele de tren -->
+  <!-- Butonul de sunet: apare doar în secțiunea B și pornește / oprește trenul -->
   <div class="sunet-plutitor">
     <span class="sunet-eticheta" id="sunetEticheta" aria-hidden="true">Sunet pornit</span>
     <button type="button" id="btnSunet" class="sunet-btn" aria-pressed="true" aria-label="Sunet pornit. Apasă pentru a opri sunetul." title="Sunet pornit / oprit">
@@ -2232,51 +2236,46 @@ function porneste() {
 
 document.addEventListener('DOMContentLoaded', porneste);
 
-/* ---------- 3. SUNET — Web Audio: trenul ---------- */
+/* ---------- 3. SUNET — Web Audio: un tren care rulează (se aude DOAR în secțiunea B) ---------- */
 
 /*
    Totul este SINTETIZAT în cod (AudioContext), fără fișiere audio: merge din fișier local
    și nu are probleme de drepturi de autor.
 
-   Politica browserelor: sunetul poate porni doar după un gest al utilizatorului (click, tastă,
-   atingere). De aceea:
-     • AudioContext se creează abia la primul gest (vezi initSunet), nu la încărcarea paginii;
-     • sunetele declanșate de un click (schimbarea indicatorului, apăsarea pe un oraș) pornesc imediat;
-     • sunetele declanșate de mouse („hover” pe un oraș) se aud doar după ce utilizatorul a făcut
-       măcar un gest în pagină — înainte de asta, funcția canta() nu face nimic.
+   Unde se aude: numai în secțiunea B („Aurul negru și transporturile”), cât timp harta cu trenuri e pe
+   ecran. La intrarea pe site, în secțiunea A, pe harta interactivă (hover, click, filtru) și în simulator
+   NU se aude nimic. Când pleci din secțiunea B, sunetul se stinge lin.
 
-   Un tren se recunoaște după câteva sunete, iar aici le facem pe toate:
-     • CUPLAJELE — vagoanele se izbesc metalic unul de altul când locomotiva smucește lanțul
-       („clanc-clanc-clanc”, tot mai repede);
-     • PUF-URILE locomotivei cu abur — zgomot alb filtrat: începe cu un „ciu” șuierat și continuă
-       cu un „uff” mai grav, plus o bătaie de pistoane la ~70 Hz. Pornesc rar și se îndesesc pe
-       măsură ce trenul prinde viteză;
-     • ROȚILE PE ȘINE — „ta-tac, ta-tac”: două lovituri scurte la fiecare îmbinare a șinelor
-       (osia din față, apoi cea din spate);
-     • FLUIERUL — un acord de două note, cu puțină respirație și un vibrato lent, ca de fluier cu aburi;
-     • HURUITUL — un zgomot grav, de fond, cât timp trenul rulează (secțiunea B).
+   Politica browserelor: sunetul poate porni doar după un gest al utilizatorului (click, tastă, atingere).
+   De aceea AudioContext se creează abia la primul gest din pagină (vezi initSunet); dacă secțiunea B e deja
+   pe ecran în acel moment, trenul pornește imediat, iar dacă nu, pornește când ajungi la ea.
 
-   Două feluri de tren: 'tren' (locomotivă de călători: puf-uri mai ușoare, ritm mai alert, fluier
-   mai ascuțit) și 'marfar' (cisterne cu țiței: puf-uri grele, multe cuplaje, fluier grav).
+   Cum sună: un tren de marfă (cisterne cu țiței) care rulează fără oprire —
+     • HURUITUL — un zgomot grav, de fond, care „respiră” lent (trenul ia curbe);
+     • PUF-URILE locomotivei cu abur — „ș-fuf”, ș-fuf” moi, fără lovituri: zgomot filtrat, cu atac lin;
+     • ROȚILE PE ȘINE — „ta-tac, ta-tac”: două lovituri mici la fiecare îmbinare a șinelor;
+     • FLUIERUL — din când în când (la 7–13 secunde): un acord de două note, cu puțină respirație și vibrato,
+       uneori un semnal lung, alteori „scurt, lung” sau „scurt, scurt, lung”.
+   Ritmul puf-urilor și al roților crește odată cu producția de petrol a anului ales.
+   Nu există lovituri de metal, cuplaje sau bătăi grave: ele sunau a ciocan și au fost scoase.
 */
 
-const NIVEL_SUNET = 2.6; // amplificarea vocilor înaintea volumului general (REPOZITOR_DATE → audio.efecte.volum)
-
-/** Cele două trenuri. Echipa poate regla aici ritmul și tonul. */
-const PROFIL_TREN = {
-  tren:   { ton: 1.0,  greutate: 0.9, pas: 0.40, pasMin: 0.14, cuplaje: 3, fluier: [466, 587], roti: 1.0 },
-  marfar: { ton: 0.68, greutate: 1.5, pas: 0.54, pasMin: 0.20, cuplaje: 6, fluier: [294, 370], roti: 0.8 }
-};
-
-/** Ce fel de tren însoțește fiecare lucru. Echipa poate schimba regulile aici. */
-const tipSunetSerie = (cheie) => (/petrol|port/.test(cheie) ? 'marfar' : 'tren');
-const tipSunetCentru = (c) => ((c.ramuri || []).some((r) => r === 'petrol' || r === 'port') ? 'marfar' : 'tren');
-const tipSunetRamura = (id) => (id === 'petrol' || id === 'port' ? 'marfar' : 'tren');
+const NIVEL_SUNET = 2.4;                   // amplificarea vocilor înaintea volumului general (REPOZITOR_DATE → audio.efecte.volum)
+const NOTE_FLUIER = [294, 370];            // acordul fluierului: re și fa diez (terță mare), grav, ca de locomotivă de marfă
+const MODELE_FLUIER = [                    // [moment (s), durată (s)] pentru fiecare semnal din model
+  [[0, 1.3]],                              // un semnal lung
+  [[0, 0.35], [0.55, 1.0]],                // scurt, apoi lung
+  [[0, 0.3], [0.5, 0.3], [1.0, 0.9]]       // scurt, scurt, lung
+];
 
 const Sunet = {
-  ctx: null, master: null, activat: true, voce: null, filtruVoce: null, ultima: 0, numar: 0, zgomot: null, semnal: 0,
-  activ: false, timere: {}, huruit: null, stare: () => ({ intensitate: 0.5, vizibil: true }),
-  stat: { ciuf: 0, tac: 0, clanc: 0, fluier: 0 },   // câte sunete de fiecare fel s-au programat (pentru teste)
+  ctx: null, master: null, iesire: null, activat: true, zgomot: null, semnal: 0,
+  activ: false, timere: {}, bus: null, lfo: null, huruit: null, modelFluier: -1,
+  stare: () => ({ intensitate: 0.5, vizibil: true }),
+  intervalFluier: () => 7000 + Math.random() * 6000,    // milisecunde până la următorul fluier
+  laSchimbare: () => {},                                // legat de pagină în initSunet
+  stat: { ciuf: 0, tac: 0, fluier: 0 },                 // câte sunete de fiecare fel s-au programat (pentru teste)
+  numar: 0,
 
   /** Creează (o singură dată) sau reia contextul audio. Se cheamă doar din gesturi ale utilizatorului. */
   deblocheaza() {
@@ -2291,9 +2290,17 @@ const Sunet = {
       this.master = this.ctx.createGain();
       this.master.gain.value = (DATE.audio && DATE.audio.efecte && DATE.audio.efecte.volum) ?? 0.25;
       this.master.connect(comp).connect(this.ctx.destination);
+      this.iesire = comp;
+      this.ctx.addEventListener('statechange', () => this.laSchimbare());
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => { /* fără gest, rămâne suspendat */ });
+    if (this.ctx.state === 'running') this.laSchimbare();
     return true;
+  },
+
+  /** Contextul audio există și rulează (adică utilizatorul a făcut deja un gest în pagină). */
+  pregatit() {
+    return Boolean(this.ctx && this.ctx.state === 'running');
   },
 
   /** Două secunde de zgomot alb, refolosite de toate sunetele. */
@@ -2308,207 +2315,96 @@ const Sunet = {
     return this.zgomot;
   },
 
-  /**
-   * Un „fir” de ieșire pentru un tren întreg: volum + filtru jos (cu ele trenul „se îndepărtează”).
-   * Un sunet nou îl taie pe cel vechi, ca să nu se îngrămădească.
-   */
-  _voce(durata) {
-    this.taie();
-    const g = this.ctx.createGain();
-    const f = this.ctx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 12000;
-    g.connect(f).connect(this.master);
-    this.voce = g;
-    this.filtruVoce = f;
-    setTimeout(() => {
-      try { g.disconnect(); f.disconnect(); } catch (e) { /* deja deconectat */ }
-      if (this.voce === g) { this.voce = null; this.filtruVoce = null; }
-    }, (durata + 0.6) * 1000);
-    return g;
-  },
-
-  /** Taie lin sunetul care se aude acum. */
-  taie() {
-    const g = this.voce;
-    if (!g || !this.ctx) return;
-    this.voce = null;
-    this.filtruVoce = null;
-    const t = this.ctx.currentTime;
-    g.gain.cancelScheduledValues(t);
-    g.gain.setTargetAtTime(0, t, 0.015);
-    setTimeout(() => { try { g.disconnect(); } catch (e) { /* deja deconectat */ } }, 200);
-  },
-
   /* ---------- cărămizile: fiecare funcție programează UN sunet la momentul t ---------- */
 
-  /** Un puf de locomotivă: „ciu” (zgomot înalt, scurt) + „uff” (zgomot cu filtru jos care se închide) + bătaia pistoanelor. */
-  _ciuf(dest, t, vol, p) {
+  /** Un puf de locomotivă, MOALE: „ș” (abur) + „fuf” (zgomot cu filtru jos care se închide). Fără bătaie de bas. */
+  _ciuf(dest, t, vol) {
     const c = this.ctx;
-    const v = Math.max(vol, 0.0002) * (0.9 + Math.random() * 0.2);   // niciun puf nu e identic cu altul
-    const ton = p.ton * (0.93 + Math.random() * 0.14);
+    const v = Math.max(vol, 0.0002) * (0.88 + Math.random() * 0.24);   // niciun puf nu e identic cu altul
+    const ton = 0.9 + Math.random() * 0.2;
 
-    // 1) „ciu” — aburul iese din cilindri: zgomot în jur de 3 kHz, aproape instantaneu
+    // „ș” — aburul care iese: zgomot în jur de 2,4 kHz, atac lin
     const s1 = c.createBufferSource();
     s1.buffer = this._zgomot();
     const bp = c.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.frequency.value = 3000 * ton;
-    bp.Q.value = 0.8;
+    bp.frequency.value = 2400 * ton;
+    bp.Q.value = 0.7;
     const g1 = c.createGain();
     g1.gain.setValueAtTime(0.0001, t);
-    g1.gain.exponentialRampToValueAtTime(v * 0.6, t + 0.004);
-    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+    g1.gain.exponentialRampToValueAtTime(v * 0.35, t + 0.02);
+    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
     s1.connect(bp).connect(g1).connect(dest);
     s1.start(t, Math.random() * 1.6);
-    s1.stop(t + 0.07);
+    s1.stop(t + 0.12);
 
-    // 2) „uff” — corpul pufului: zgomot a cărui bandă se închide repede, de la ~2,4 kHz spre ~0,4 kHz
+    // „fuf” — corpul pufului: zgomot a cărui bandă se închide de la ~1,5 kHz spre ~0,3 kHz
     const s2 = c.createBufferSource();
     s2.buffer = this._zgomot();
     const hp = c.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 110;
+    hp.frequency.value = 90;
     const lp = c.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.Q.value = 0.7;
-    lp.frequency.setValueAtTime(2400 * ton, t);
-    lp.frequency.exponentialRampToValueAtTime(400 * ton, t + 0.15);
+    lp.Q.value = 0.6;
+    lp.frequency.setValueAtTime(1500 * ton, t);
+    lp.frequency.exponentialRampToValueAtTime(300 * ton, t + 0.2);
     const g2 = c.createGain();
     g2.gain.setValueAtTime(0.0001, t);
-    g2.gain.exponentialRampToValueAtTime(v * 1.35, t + 0.012);
-    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    g2.gain.exponentialRampToValueAtTime(v * 1.2, t + 0.022);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
     s2.connect(hp).connect(lp).connect(g2).connect(dest);
     s2.start(t, Math.random() * 1.6);
-    s2.stop(t + 0.22);
-
-    // 3) bătaia pistoanelor: sinus care coboară de la 80 la 46 Hz, cu o armonică ca să se audă și pe difuzoare mici
-    const o = c.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(80, t);
-    o.frequency.exponentialRampToValueAtTime(46, t + 0.14);
-    const g3 = c.createGain();
-    g3.gain.setValueAtTime(0.0001, t);
-    g3.gain.exponentialRampToValueAtTime(v * 0.5 * p.greutate, t + 0.01);
-    g3.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    o.connect(g3).connect(dest);
-    o.start(t);
-    o.stop(t + 0.2);
-    const o2 = c.createOscillator();
-    o2.type = 'triangle';
-    o2.frequency.setValueAtTime(160, t);
-    o2.frequency.exponentialRampToValueAtTime(92, t + 0.12);
-    const g4 = c.createGain();
-    g4.gain.setValueAtTime(0.0001, t);
-    g4.gain.exponentialRampToValueAtTime(v * 0.22 * p.greutate, t + 0.008);
-    g4.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
-    o2.connect(g4).connect(dest);
-    o2.start(t);
-    o2.stop(t + 0.13);
+    s2.stop(t + 0.3);
 
     this.numar++;
     this.stat.ciuf++;
   },
 
-  /** O lovitură de roată pe îmbinarea șinelor: pocnet metalic scurt + bufnitură + o mică rezonanță de oțel. */
-  _tac(dest, t, vol, ton = 1) {
+  /** O lovitură MICĂ de roată pe îmbinarea șinelor: clic moale + bufnitură scurtă (fără rezonanță metalică). */
+  _tac(dest, t, vol) {
     const c = this.ctx;
-    const v = Math.max(vol, 0.0002);
+    const v = Math.max(vol, 0.0002) * (0.9 + Math.random() * 0.2);
 
     const s = c.createBufferSource();
     s.buffer = this._zgomot();
     const bp = c.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.frequency.value = 2300 * ton;
-    bp.Q.value = 1.0;
+    bp.frequency.value = 1500;
+    bp.Q.value = 0.8;
     const g1 = c.createGain();
     g1.gain.setValueAtTime(0.0001, t);
-    g1.gain.exponentialRampToValueAtTime(v * 1.7, t + 0.0015);
-    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    g1.gain.exponentialRampToValueAtTime(v * 0.9, t + 0.004);
+    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
     s.connect(bp).connect(g1).connect(dest);
     s.start(t, Math.random() * 1.6);
-    s.stop(t + 0.05);
+    s.stop(t + 0.07);
 
     const o = c.createOscillator();
     o.type = 'sine';
-    o.frequency.setValueAtTime(190 * ton, t);
-    o.frequency.exponentialRampToValueAtTime(120 * ton, t + 0.07);
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(105, t + 0.08);
     const g2 = c.createGain();
     g2.gain.setValueAtTime(0.0001, t);
-    g2.gain.exponentialRampToValueAtTime(v * 0.55, t + 0.003);
-    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    g2.gain.exponentialRampToValueAtTime(v * 0.45, t + 0.006);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
     o.connect(g2).connect(dest);
     o.start(t);
-    o.stop(t + 0.1);
-
-    const r = c.createOscillator();
-    r.type = 'triangle';
-    r.frequency.value = 780 * ton;
-    const g3 = c.createGain();
-    g3.gain.setValueAtTime(0.0001, t);
-    g3.gain.exponentialRampToValueAtTime(v * 0.3, t + 0.002);
-    g3.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
-    r.connect(g3).connect(dest);
-    r.start(t);
-    r.stop(t + 0.05);
+    o.stop(t + 0.12);
 
     this.stat.tac++;
   },
 
-  /** „Ta-tac”: două lovituri la mică distanță (osia din față, apoi cea din spate, puțin mai slabă și mai ascuțită). */
-  _dublet(dest, t, vol, interval = 0.09, ton = 1) {
-    this._tac(dest, t, vol, ton);
-    this._tac(dest, t + interval, vol * 0.85, ton * 1.08);
+  /** „Ta-tac”: două lovituri la mică distanță (osia din față, apoi cea din spate, puțin mai slabă). */
+  _dublet(dest, t, vol, interval = 0.1) {
+    this._tac(dest, t, vol);
+    this._tac(dest, t + interval, vol * 0.8);
   },
 
-  /** Un clanc de cuplaj: o bară de oțel lovită — trei armonice neîntregi (1 : 2,76 : 5,4) care se sting repede. */
-  _clanc(dest, t, vol, f = 520) {
+  /** Un semnal de fluier: acord de două note (triunghi + octava lor), vibrato lent și puțină respirație. */
+  _fluier(dest, t, durata = 0.9, note = NOTE_FLUIER, vol = 1) {
     const c = this.ctx;
-    const v = Math.max(vol, 0.0002);
-    [[1, 1, 0.16], [2.76, 0.8, 0.1], [5.4, 0.5, 0.06]].forEach(([raport, amplitudine, durata]) => {
-      const o = c.createOscillator();
-      o.type = 'sine';
-      o.frequency.value = f * raport * (0.97 + Math.random() * 0.06);
-      const g = c.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(v * amplitudine * 0.6, t + 0.002);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + durata);
-      o.connect(g).connect(dest);
-      o.start(t);
-      o.stop(t + durata + 0.02);
-    });
-    const s = c.createBufferSource();           // pocnetul de la impact
-    s.buffer = this._zgomot();
-    const bp = c.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = 2600;
-    bp.Q.value = 1;
-    const gs = c.createGain();
-    gs.gain.setValueAtTime(0.0001, t);
-    gs.gain.exponentialRampToValueAtTime(v * 0.4, t + 0.001);
-    gs.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
-    s.connect(bp).connect(gs).connect(dest);
-    s.start(t, Math.random() * 1.6);
-    s.stop(t + 0.04);
-    this.stat.clanc++;
-  },
-
-  /** Cuplajele se strâng pe rând, din față spre coada trenului: clancuri tot mai dese și tot mai slabe. */
-  _cuplaje(dest, t, n, vol) {
-    let dt = 0;
-    let pas = 0.13;
-    for (let i = 0; i < n; i++) {
-      this._clanc(dest, t + dt, vol * (1 - 0.08 * i), 430 + Math.random() * 220);
-      dt += pas;
-      pas *= 0.8;
-    }
-    return dt;
-  },
-
-  /** Fluierul locomotivei: acord de două note (triunghi + octava lor), vibrato lent și puțină respirație. */
-  _fluier(dest, t, durata = 0.9, note = [466, 587], vol = 1) {
-    const c = this.ctx;
-    const v = 0.13 * vol * NIVEL_SUNET;
+    const v = 0.16 * vol * NIVEL_SUNET;
     const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(v, t + 0.1);
@@ -2556,7 +2452,16 @@ const Sunet = {
     this.stat.fluier++;
   },
 
-  /** Huruitul de fond: zgomot foarte grav (sub 140 Hz) + o dungă mai sus (~320 Hz), ca să se audă și pe laptop. */
+  /** Un „fluier” întreg, după un model ales la întâmplare (nu de două ori la rând același). Întoarce durata lui. */
+  _semnalFluier(dest, t) {
+    this.modelFluier = (this.modelFluier + 1 + Math.floor(Math.random() * 2)) % MODELE_FLUIER.length;
+    const model = MODELE_FLUIER[this.modelFluier];
+    model.forEach(([dt, durata]) => this._fluier(dest, t + dt, durata));
+    const [dt, durata] = model[model.length - 1];
+    return dt + durata;
+  },
+
+  /** Huruitul de fond: zgomot foarte grav (sub 140 Hz) + o dungă la ~320 Hz și un „vuiet” larg la ~650 Hz. */
   _huruit(dest, t, vol) {
     const c = this.ctx;
     const s = c.createBufferSource();
@@ -2572,103 +2477,26 @@ const Sunet = {
     bp.Q.value = 0.6;
     const sus = c.createGain();
     sus.gain.value = 0.35;
+    const vuiet = c.createBiquadFilter();
+    vuiet.type = 'bandpass';
+    vuiet.frequency.value = 650;
+    vuiet.Q.value = 0.5;
+    const gv = c.createGain();
+    gv.gain.value = 0.18;
     const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(Math.max(vol, 0.0002), t + 0.6);
+    g.gain.exponentialRampToValueAtTime(Math.max(vol, 0.0002), t + 0.8);
     s.connect(lp).connect(g);
     s.connect(bp).connect(sus).connect(g);
+    s.connect(vuiet).connect(gv).connect(g);
     g.connect(dest);
     s.start(t, Math.random() * 1.6);
     return { g, s };
   },
 
-  /* ---------- compoziții ---------- */
+  /* ---------- trenul care rulează ---------- */
 
-  /**
-   * Un tren care pornește și se îndepărtează.
-   *   lung  (schimbi indicatorul): fluier → cuplaje → 10 puf-uri tot mai dese + roți pe șine → se pierde în depărtare;
-   *   scurt (hover pe un oraș):    3 puf-uri și un „ta-tac” (la marfar, și 2 cuplaje).
-   * `fluier: true` adaugă un scurt semnal de fluier (folosit la pornirea sunetului).
-   */
-  compune(tip, scurt, fluier = false) {
-    const p = PROFIL_TREN[tip] || PROFIL_TREN.tren;
-    const c = this.ctx;
-
-    // 1) planul în timp (secunde de la începutul sunetului)
-    const nPufuri = scurt ? 3 : 10;
-    let tPuf;
-    if (!scurt) tPuf = 0.95 + p.cuplaje * 0.04;                 // pufurile încep când se strâng ultimele cuplaje
-    else tPuf = fluier ? 0.45 : 0.05;
-    const pufuri = [];
-    let pas = scurt ? p.pas * 0.62 : p.pas;
-    for (let i = 0; i < nPufuri; i++) {
-      pufuri.push(tPuf);
-      tPuf += pas;
-      pas = Math.max(scurt ? p.pasMin * 1.5 : p.pasMin, pas * (scurt ? 0.9 : 0.86));
-    }
-    const sfarsit = tPuf + 0.15;
-
-    const bus = this._voce(sfarsit + 0.4);
-    const t0 = c.currentTime + 0.03;
-
-    // 2) fluier (lung, sau scurt când e cerut)
-    if (!scurt) this._fluier(bus, t0, 0.5, p.fluier, 0.9);
-    else if (fluier) this._fluier(bus, t0, 0.32, p.fluier, 0.8);
-
-    // 3) cuplaje
-    if (!scurt) this._cuplaje(bus, t0 + 0.55, p.cuplaje, NIVEL_SUNET * 0.85);
-    else if (tip === 'marfar' && !fluier) this._cuplaje(bus, t0, 2, NIVEL_SUNET * 0.7);
-
-    // 4) puf-urile: ritm „ciuf-ciuf-ciuf-ciuf”, cu accente (tare, slab, mediu, slab)
-    const accent = [1, 0.55, 0.8, 0.55];
-    pufuri.forEach((dt, i) => this._ciuf(bus, t0 + dt, NIVEL_SUNET * accent[i % 4], p));
-
-    // 5) roțile pe șine: încep după al doilea puf (lung) sau imediat (scurt), tot mai dese și mai tari
-    if (!scurt) {
-      let tr = pufuri[1];
-      let per = 0.34 / p.roti;
-      for (let k = 0; tr < sfarsit - 0.25; k++) {
-        this._dublet(bus, t0 + tr, NIVEL_SUNET * Math.min(0.85, 0.3 + 0.07 * k), Math.max(0.065, 0.1 - 0.005 * k), 1);
-        tr += per;
-        per = Math.max(0.17 / p.roti, per * 0.9);
-      }
-    } else if (!fluier) {
-      this._dublet(bus, t0 + pufuri[0] + 0.12, NIVEL_SUNET * 0.45, 0.09, 1);
-      this._dublet(bus, t0 + pufuri[1] + 0.12, NIVEL_SUNET * 0.5, 0.085, 1);
-    }
-
-    // 6) trenul se îndepărtează: volumul scade și filtrul „închide” sunetul (rămâne doar partea gravă)
-    const durataFade = Math.min(1.2, sfarsit * 0.45);
-    const tf = t0 + sfarsit - durataFade;
-    bus.gain.setValueAtTime(1, tf);
-    bus.gain.exponentialRampToValueAtTime(scurt ? 0.4 : 0.16, t0 + sfarsit);
-    if (this.filtruVoce) {
-      this.filtruVoce.frequency.setValueAtTime(12000, tf);
-      this.filtruVoce.frequency.exponentialRampToValueAtTime(scurt ? 3500 : 900, t0 + sfarsit);
-    }
-  },
-
-  /**
-   * Redă un sunet. `gest: true` = apelul vine dintr-un click / o tastă (voie să pornească sunetul);
-   * `gest: false` = „hover” sau focus: se aude doar dacă utilizatorul a făcut deja un gest în pagină.
-   */
-  canta(tip, { scurt = false, gest = false, fluier = false } = {}) {
-    if (!this.activat) return;
-    if (gest) this.deblocheaza();
-    const c = this.ctx;
-    if (!c) return;                                    // niciun gest încă: tăcere, cum cer browserele
-    if (!gest && performance.now() - this.ultima < 450) return; // mouse-ul nu face spam de sunete
-    const joaca = () => {
-      if (c.state !== 'running' || !this.activat) return;
-      this.ultima = performance.now();
-      this.compune(tip, scurt, fluier);
-      this.semnaleaza();
-    };
-    if (c.state === 'running') joaca();
-    else if (gest) c.resume().then(joaca).catch(() => { /* rămâne în tăcere */ });
-  },
-
-  /** Inelul care pulsează în jurul butonului de sunet cât timp se aude ceva. */
+  /** Inelul care pulsează în jurul butonului de sunet când fluieră trenul. */
   semnaleaza() {
     const buton = $('#btnSunet');
     if (!buton) return;
@@ -2679,44 +2507,74 @@ const Sunet = {
     this.semnal = setTimeout(() => buton.classList.remove('suna'), 950);
   },
 
-  /** Sunetul unui centru de pe hartă (hover, focus sau click). */
-  centru(c, gest) {
-    this.canta(tipSunetCentru(c), { scurt: true, gest });
-  },
-
-  /* --- sunet continuu, pentru animația „Redă anii” din secțiunea B: un marfar care rulează --- */
-
-  /** `citesteStare()` întoarce { intensitate: 0..1, vizibil: bool } — cât de intens e fluxul acum. */
+  /**
+   * Pornește trenul. `citesteStare()` întoarce { intensitate: 0..1, vizibil: bool } — cât de intens e fluxul
+   * de petrol acum. Nu face nimic dacă utilizatorul n-a făcut încă un gest în pagină sau dacă sunetul e oprit.
+   */
   porneste(citesteStare) {
-    this.opreste();
-    if (!this.activat || !this.deblocheaza()) return;
+    if (this.activ || !this.activat || !this.pregatit()) return;
     this.stare = citesteStare;
     this.activ = true;
-    const p = PROFIL_TREN.marfar;
-    const t = this.ctx.currentTime + 0.03;
-    this._fluier(this.master, t, 0.9, p.fluier, 0.9);                       // semnal de plecare
-    this.huruit = this._huruit(this.master, t, NIVEL_SUNET * 0.22);          // huruitul de fond
-    // Două ritmuri independente, programate cu ceasul audio (fără bâlbâieli):
-    // cu cât producția anului e mai mare, cu atât puf-urile și roțile merg mai repede.
-    const accent = [1, 0.55, 0.8, 0.55];
-    this.ritm('ciuf', (i) => 0.52 - 0.24 * i, (tp, i, n) =>
-      this._ciuf(this.master, tp, NIVEL_SUNET * (0.5 + 0.5 * i) * accent[n % 4], p));
-    this.ritm('roti', (i) => 0.4 - 0.18 * i, (tp, i) =>
-      this._dublet(this.master, tp, NIVEL_SUNET * (0.35 + 0.4 * i), 0.1 - 0.025 * i, 1));
+    const c = this.ctx;
+    const t = c.currentTime + 0.05;
+
+    // magistrala trenului: intrare lină (1,5 s) și o „respirație” foarte lentă a volumului
+    const bus = c.createGain();
+    bus.gain.setValueAtTime(0.0001, t);
+    bus.gain.exponentialRampToValueAtTime(0.85, t + 1.5);
+    const lfo = c.createOscillator();
+    lfo.frequency.value = 0.08;
+    const adancime = c.createGain();
+    adancime.gain.value = 0.12;
+    lfo.connect(adancime).connect(bus.gain);
+    lfo.start(t);
+    bus.connect(this.master);
+    this.bus = bus;
+    this.lfo = lfo;
+
+    this.huruit = this._huruit(bus, t, NIVEL_SUNET * 0.3);
+
+    // Două ritmuri independente, programate cu ceasul audio (fără bâlbâieli): cu cât producția anului
+    // e mai mare, cu atât puf-urile și roțile merg mai repede.
+    const accent = [1, 0.6, 0.85, 0.6];
+    this.ritm('ciuf', (i) => 0.56 - 0.24 * i, (tp, i, n) =>
+      this._ciuf(bus, tp, NIVEL_SUNET * (0.5 + 0.4 * i) * accent[n % 4]));
+    this.ritm('roti', (i) => 0.5 - 0.2 * i, (tp, i) =>
+      this._dublet(bus, tp, NIVEL_SUNET * (0.3 + 0.3 * i), 0.1 - 0.02 * i));
+
+    // fluierul: primul după ~1,6 s, apoi la intervale neregulate (vezi intervalFluier)
+    const fluiera = (ms) => {
+      this.timere.fluier = setTimeout(() => {
+        if (!this.activ) return;
+        if (this.stare().vizibil !== false && this.pregatit()) {
+          this._semnalFluier(this.bus, this.ctx.currentTime + 0.05);
+          this.semnaleaza();
+        }
+        fluiera(this.intervalFluier());
+      }, ms);
+    };
+    fluiera(1600);
   },
 
+  /** Oprește trenul: volumul scade lin în 0,6 s, apoi totul se deconectează. */
   opreste() {
     this.activ = false;
     Object.values(this.timere).forEach(clearTimeout);
     this.timere = {};
-    if (this.huruit && this.ctx) {                      // huruitul se stinge lin
-      const { g, s } = this.huruit;
-      const t = this.ctx.currentTime;
-      g.gain.cancelScheduledValues(t);
-      g.gain.setTargetAtTime(0, t, 0.12);
-      try { s.stop(t + 0.7); } catch (e) { /* deja oprit */ }
-      this.huruit = null;
-    }
+    const { ctx: c, bus, lfo, huruit } = this;
+    if (!c || !bus) return;
+    this.bus = null;
+    this.lfo = null;
+    this.huruit = null;
+    const t = c.currentTime;
+    bus.gain.cancelScheduledValues(t);
+    bus.gain.setValueAtTime(Math.max(bus.gain.value, 0.0002), t);
+    bus.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    setTimeout(() => {
+      try { lfo.stop(); } catch (e) { /* deja oprit */ }
+      try { huruit.s.stop(); } catch (e) { /* deja oprit */ }
+      try { bus.disconnect(); } catch (e) { /* deja deconectat */ }
+    }, 900);
   },
 
   /**
@@ -2748,29 +2606,30 @@ function initSunet() {
   const eticheta = $('#sunetEticheta');
 
   const actualizeaza = () => {
+    const asteapta = Sunet.activat && !Sunet.pregatit();       // pornit, dar browserul așteaptă primul gest
     buton.setAttribute('aria-pressed', String(Sunet.activat));
     buton.setAttribute('aria-label', Sunet.activat ? 'Sunet pornit. Apasă pentru a opri sunetul.' : 'Sunet oprit. Apasă pentru a porni sunetul.');
-    eticheta.textContent = Sunet.activat ? 'Sunet pornit' : 'Sunet oprit';
+    eticheta.textContent = !Sunet.activat ? 'Sunet oprit' : asteapta ? 'Apasă oriunde pe pagină pentru sunet' : 'Sunet pornit';
   };
+
+  // când contextul audio își schimbă starea (de ex. după primul gest), pornim / oprim trenul și actualizăm eticheta
+  Sunet.laSchimbare = () => { actualizeazaSunetB(); actualizeaza(); };
 
   buton.addEventListener('click', () => {
     Sunet.deblocheaza();
     Sunet.activat = !Sunet.activat;
-    if (Sunet.activat) {
-      Sunet.canta('tren', { scurt: true, fluier: true, gest: true });   // un semnal scurt de fluier: „sunetul e pornit”
-    } else {
-      Sunet.opreste();
-      Sunet.taie();
-    }
-    if (B.cv) actualizeazaSunetB();       // dacă animația rulează, sunetul ei pornește / se oprește odată cu butonul
+    if (!Sunet.activat) Sunet.opreste();
+    actualizeazaSunetB();             // dacă secțiunea B e pe ecran, trenul pornește / se oprește odată cu butonul
     actualizeaza();
   });
 
-  // Primul gest din pagină (click, tastă sau atingere, oriunde) pregătește sunetul. Așa se aude
-  // apoi și „hover”-ul pe orașe, care în sine nu este un gest.
+  // Primul gest din pagină (click, tastă sau atingere, oriunde) pregătește sunetul.
   const deblocare = () => { Sunet.deblocheaza(); };
   ['pointerdown', 'keydown', 'touchend'].forEach((eveniment) =>
     document.addEventListener(eveniment, deblocare, { capture: true, passive: true }));
+
+  // fila ascunsă = tren oprit
+  document.addEventListener('visibilitychange', actualizeazaSunetB);
 
   actualizeaza();
 }
@@ -2838,7 +2697,6 @@ function initSectiuneA() {
   sel.addEventListener('change', () => {
     A.cheie = sel.value;
     deseneazaA();
-    Sunet.canta(tipSunetSerie(A.cheie), { gest: true });   // schimbarea indicatorului se aude: sonda sau trenul
   });
 
   // cursorul de ani
@@ -3168,7 +3026,7 @@ const B = {
   an: 0, joaca: false, cronometru: null, vizibil: true, murdar: true,
   latime: 0, inaltime: 0, proiectie: null,
   noduri: new Map(), rute: [], dunare: [],
-  valoare: 0, max: 1, anMax: 0, cv: null, ctx: null
+  valoare: 0, max: 1, anMax: 0, cv: null, ctx: null, sunetVizibil: false
 };
 
 const POZITII_ETICHETE = { dr: [10, 4, 'left'], st: [-10, 4, 'right'], sus: [0, -12, 'center'], jos: [0, 22, 'center'] };
@@ -3190,6 +3048,11 @@ function initSectiuneB() {
 
   new ResizeObserver(redimensioneazaB).observe(B.cv.parentElement);
   new IntersectionObserver(([intrare]) => { B.vizibil = intrare.isIntersecting; }).observe(B.cv);
+  // sunetul trenului: doar când cel puțin o treime din harta cu trenuri e pe ecran
+  new IntersectionObserver(([intrare]) => {
+    B.sunetVizibil = intrare.intersectionRatio >= 0.33;
+    actualizeazaSunetB();
+  }, { threshold: [0, 0.33] }).observe(B.cv.parentElement);
 
   redimensioneazaB();
   setAnB(B.an);
@@ -3255,17 +3118,22 @@ function comutaJoaca() {
       else setAnB(B.an + 1);
     }, 900);
   }
-  actualizeazaSunetB();
 }
 
-/** Sunetele merg doar cât timp rulează animația ȘI butonul de sunet e pornit. */
+/**
+ * Trenul se aude doar în secțiunea B: cât timp harta cu trenuri e pe ecran, fila e vizibilă și butonul de sunet
+ * e pornit. Butonul de sunet apare și el doar aici. („Redă anii” schimbă anul, nu pornește sunetul.)
+ */
 function actualizeazaSunetB() {
-  if (B.joaca && Sunet.activat) {
+  const plutitor = document.querySelector('.sunet-plutitor');
+  if (plutitor) plutitor.classList.toggle('vizibil', Boolean(B.sunetVizibil));
+  const voie = Sunet.activat && B.sunetVizibil && !document.hidden;
+  if (voie) {
     Sunet.porneste(() => ({
       intensitate: B.max ? B.valoare / B.max : 0,
       vizibil: B.vizibil && !document.hidden
     }));
-  } else {
+  } else if (Sunet.activ) {
     Sunet.opreste();
   }
 }
@@ -3498,9 +3366,9 @@ function deseneazaHarta() {
     eticheta.textContent = c.nume;
     g.append(eticheta);
 
-    g.addEventListener('click', () => { Sunet.centru(c, true); deschidePopup(c); });
+    g.addEventListener('click', () => deschidePopup(c));
     g.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); Sunet.centru(c, true); deschidePopup(c); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); deschidePopup(c); }
     });
     svg.append(g);
     HARTA.orase.set(c.id, { centru: c, g });
@@ -3561,13 +3429,12 @@ function ascundeTooltip() {
 
 function initTooltipPlutitor() {
   for (const { centru: c, g } of HARTA.orase.values()) {
-    // Mouse sau stylus: tooltip care urmărește cursorul + sunet scurt (doar după un prim gest în pagină).
+    // Mouse sau stylus: tooltip care urmărește cursorul (pe hartă nu se aude nimic).
     // Pe touch nu arătăm tooltip-ul (tap = pop-up direct).
     g.addEventListener('pointerenter', (e) => {
       if (e.pointerType === 'touch') return;
       arataTooltip(c, e.clientX, e.clientY);
       aprindeRegiune(c.regiune, true);
-      Sunet.centru(c, false);
     });
     g.addEventListener('pointermove', (e) => {
       if (e.pointerType === 'touch') return;
@@ -3582,7 +3449,6 @@ function initTooltipPlutitor() {
       const r = g.getBoundingClientRect();
       arataTooltip(c, r.right, r.bottom);
       aprindeRegiune(c.regiune, true);
-      Sunet.centru(c, false);
     });
     g.addEventListener('blur', () => {
       ascundeTooltip();
@@ -3637,7 +3503,6 @@ function initFiltruIndustrie() {
   }
   sel.addEventListener('change', () => {
     filtrareDinamicaHarta(sel.value);
-    Sunet.canta(tipSunetRamura(sel.value), { scurt: true, gest: true });
   });
   filtrareDinamicaHarta('toate');
 }
@@ -3733,8 +3598,6 @@ const Ghid = {
   comuta(c, buton) {
     if (this.buton === buton) { this.opreste(); return; }   // al doilea click = oprire
     this.opreste();
-    Sunet.taie();                                           // vocea nu se amestecă cu sondele și trenurile
-    Sunet.opreste();
     this.buton = buton;
     buton.setAttribute('aria-pressed', 'true');
     buton.textContent = 'Oprește ghidul';
